@@ -53,6 +53,15 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+    <None Include="packages\iTextSharp.5.5.11\iTextSharp.5.5.11.nupkg" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="doc\design.txt" />
+    <Content Include="doc\gristleiser-bom.txt" />
+    <Content Include="packages\iTextSharp.5.5.11\AGPL.txt" />
+    <Content Include="packages\iTextSharp.5.5.11\lib\itextsharp.dll" />
+    <Content Include="packages\iTextSharp.5.5.11\lib\iTextSharp.xml" />
+    <Content Include="packages\iTextSharp.5.5.11\notice.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
