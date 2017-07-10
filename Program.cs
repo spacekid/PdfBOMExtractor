@@ -10,13 +10,21 @@ namespace PdfTableExtractor
 {
     class Program
     {
+        private const string separators = "[-|,]";
+        
+        private static Regex bomRegex = new Regex(@"[A-Z]+(\d+|\d+(" + separators + @"\d+)*)( +)(.*)|[A-Z]+\s+[A|B|C]?((\d+\.\d+|\d+)[R|K|M]\d*)[A|B|C]?(\s+TRIM)?|[A-Z]+\s+.{1}P.{1}T\s+.*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         private static Regex indicatorRegex = new Regex(@"^([A-Z]*?)(\d*?)(?=\s+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static Regex componentIdRegex = new Regex(@"(IC|R|C|D|Q|TR|SW|P|PT)(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static Regex componentValueRegex = new Regex(@"(\d+\.\d+|\d+)[R|K|M]\d*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private static Regex multipleComponentsRegex = new Regex(@"[a-zA-Z]+\d+(-[a-zA-Z]*?\d+)+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex doubleIndicatorRegex = new Regex(@"^[A-Z]+\d+((" + separators + @")[A-Z]*?\d+)+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static Regex multiCompSepRegex = new Regex(separators, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static Regex multipleComponentsRegex = new Regex(@"[a-zA-Z]+\d+(" + separators + @"[a-zA-Z]*?\d+)+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex multiCompExtractionRegex = new Regex(@"(([a-zA-Z]*?)(\d+))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static Regex resistorRegex = new Regex(@"(?<=\W)((\d+\.\d+|\d+)[R|K|M]\d*)(?![A|B|C|\sTRIM])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -25,6 +33,7 @@ namespace PdfTableExtractor
         private static Regex proElectronRegex = new Regex(@"[A|B|C|R][A|B|C|D|E|F|G|H|L|N|P|Q|R|S|T|U|W|X|Y|Z](\d{3}|[A-Z]\d{2})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex potentioMeterRegex = new Regex(@"(?<=\W)[A|B|C]?((\d+\.\d+|\d+)[R|K|M]\d*)[A|B|C]?(?!\sTRIM)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex trimmerRegex = new Regex(@"(?<=[A-Z]*\s+)\d+[R|K|M](?=\s+TRIM)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex switchRegex = new Regex(@"(?<=[a-zA-Z0-9]+\s+)([a-zA-Z0-9]{1}P[a-zA-Z0-9]{1}T)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex generalRegex = new Regex(@"(?<=[A-Z]*?\d+\s+).*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static List<Regex> semiConductorRegexList = new List<Regex>() { jedecRegex, proElectronRegex, generalRegex };
@@ -37,7 +46,7 @@ namespace PdfTableExtractor
             { enumComponentType.DIODE, semiConductorRegexList },
             { enumComponentType.TRANSISTOR, semiConductorRegexList },
             { enumComponentType.INTEGRATED_CIRCUIT, new List<Regex>(){ generalRegex } },
-            { enumComponentType.SWITCH, new List<Regex>(){ generalRegex } },
+            { enumComponentType.SWITCH, new List<Regex>(){ switchRegex, generalRegex } },
             { enumComponentType.POTENTIOMETER, potentioMeterRegexList },
             { enumComponentType.TRIMMER, new List<Regex>(){ trimmerRegex } },
         };
@@ -57,11 +66,20 @@ namespace PdfTableExtractor
 
     static void Main(string[] args)
         {
-            string pdfPath = @"G:\Martijn\Music\Guitar Pedals\Gristleiser.pdf";
+            //string pdfPath = @"G:\Martijn\Music\Guitar Pedals\Gristleiser.pdf";
             //string pdfPath = @"G:\Martijn\Music\Guitar Pedals\Repeater-V3.pdf";
 
+            //string pdfPath = @"C:\Personal\Guitar Pedals\Gristleiser.pdf";
+            string pdfPath = @"C:\Personal\Guitar Pedals\19Bells.pdf";
+
             //get the text from the pdf
-            Dictionary<int, string[]> pdfTextDict = normalizeComponents(ExtractTextFromPdf(pdfPath));
+            Dictionary<int, string[]> pdfTextDict = ExtractTextFromPdf(pdfPath);
+
+            pdfTextDict = normalizeComponents(pdfTextDict);
+
+            string[] page2Lines = pdfTextDict[0];
+            
+            string page2 = string.Join(Environment.NewLine, page2Lines);
 
             findBillOfMaterials(pdfTextDict);
             return;
@@ -84,47 +102,58 @@ namespace PdfTableExtractor
                 {
                     string pageLine = pageLines[lineIndex];
 
-                    //check for two or more components on the same line
-                    Match multiMatch = multipleComponentsRegex.Match(pageLine);
-                    if (multiMatch.Success)
+                    Match doubleIndicatorMatch = doubleIndicatorRegex.Match(pageLine);
+                    if (doubleIndicatorMatch.Success)
                     {
-                        //get the multi match string
-                        string multiMatchValue = multiMatch.Value;
-
-                        //get the components
-                        MatchCollection multiCompList = multiCompExtractionRegex.Matches(multiMatchValue);
-                        if (multiCompList != null && multiCompList.Count > 0)
+                        Match sepMatch = multiCompSepRegex.Match(doubleIndicatorMatch.Value);
+                        if (sepMatch.Success)
                         {
-                            string componentValue = pageLine.Replace(multiMatchValue, string.Empty);
+                            string separator = sepMatch.Value;
 
-                            string componentType = string.Empty;
-                            foreach(Match multiCompMatch in multiCompList)
+                            //check for two or more components on the same line
+                            Match multiMatch = multipleComponentsRegex.Match(pageLine);
+                            if (multiMatch.Success)
                             {
-                                if (string.IsNullOrEmpty(componentType))
+                                //get the multi match string
+                                string multiMatchValue = multiMatch.Value;
+
+                                //get the components
+                                MatchCollection multiCompList = multiCompExtractionRegex.Matches(multiMatchValue);
+                                if (multiCompList != null && multiCompList.Count > 0)
                                 {
-                                    if (multiCompMatch.Groups.Count == 4)
+                                    string componentValue = pageLine.Replace(multiMatchValue, string.Empty);
+
+                                    string componentType = string.Empty;
+                                    foreach(Match multiCompMatch in multiCompList)
                                     {
-                                        componentType = multiCompMatch.Groups[2].Value;
-                                    }
-                                }
+                                        if (string.IsNullOrEmpty(componentType))
+                                        {
+                                            if (multiCompMatch.Groups.Count == 4)
+                                            {
+                                                componentType = multiCompMatch.Groups[2].Value;
+                                            }
+                                        }
 
-                                string compIndicator = string.Empty;
-                                if (!string.IsNullOrEmpty(multiCompMatch.Groups[2].Value))
-                                {
-                                    compIndicator = multiCompMatch.Value;
-                                }
-                                else
-                                {
-                                    compIndicator = string.Format("{0}{1}",
-                                        componentType,
-                                        multiCompMatch.Groups[3].Value);
-                                }
+                                        string compIndicator = string.Empty;
+                                        if (!string.IsNullOrEmpty(multiCompMatch.Groups[2].Value))
+                                        {
+                                            compIndicator = multiCompMatch.Value;
+                                        }
+                                        else
+                                        {
+                                            compIndicator = string.Format("{0}{1}",
+                                                componentType,
+                                                multiCompMatch.Groups[3].Value);
+                                        }
 
-                                string newPageLine = string.Format("{0}{1}", compIndicator, componentValue);
+                                        string newPageLine = string.Format("{0}{1}", compIndicator, componentValue);
 
-                                normalizedPageLines.Add(newPageLine);
-                            }                            
-                        }
+                                        normalizedPageLines.Add(newPageLine);
+                                    }                            
+                                }
+                            } 
+
+                        }                    
                     }
                     else
                     {
@@ -143,7 +172,7 @@ namespace PdfTableExtractor
 
             foreach (int page in pdfTextDict.Keys)
             {
-                string[] pageLines = pdfTextDict[page];
+                string[] pageLines = pdfTextDict[page]; 
 
                 for(int lineIndex=0;lineIndex<pageLines.Length;lineIndex++)
                 {
@@ -269,18 +298,36 @@ namespace PdfTableExtractor
         {
             Dictionary<int, string[]> pdfTextDict = new Dictionary<int, string[]>();
 
+            string bomPage = string.Empty;
+            int bomPageNo = -1;
+ 
             using (PdfReader reader = new PdfReader(path))
             {
                 StringBuilder text = new StringBuilder();
                 
-
                 for (int i = 1; i <= reader.NumberOfPages; i++)
                 {
                     string page = PdfTextExtractor.GetTextFromPage(reader, i, new SimpleTextExtractionStrategy());
 
+                    MatchCollection bomMatches = bomRegex.Matches(page);
+                    if (bomMatches.Count > 0)
+                    {
+                        bomPageNo = i;
+                        bomPage = string.Join("\n", from Match match in bomMatches select match.Value);
+                        break;
+                    }
+
                     pdfTextDict.Add(i, page.Split('\n'));
-                }
+                }                
             }
+
+            if (bomPageNo > -1 && !string.IsNullOrEmpty(bomPage))
+            {
+                pdfTextDict = new Dictionary<int, string[]>();
+
+                pdfTextDict.Add(bomPageNo, bomPage.Split('\n'));
+            }
+
             return pdfTextDict;
         }
     }
