@@ -19,14 +19,15 @@ namespace PdfTableExtractor
         private static Regex multipleComponentsRegex = new Regex(@"[a-zA-Z]+\d+(-[a-zA-Z]*?\d+)+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex multiCompExtractionRegex = new Regex(@"(([a-zA-Z]*?)(\d+))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private static Regex resistorRegex = new Regex(@"(?<=\W)((\d+\.\d+|\d+)[R|K|M]\d*)(?![A|B|C])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex resistorRegex = new Regex(@"(?<=\W)((\d+\.\d+|\d+)[R|K|M]\d*)(?![A|B|C|\sTRIM])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex capacitorRegex = new Regex(@"(\d+\.\d+|\d+)([p|pf|n|nf|u|uf])\d{1}|(\d+\.\d+|\d+)([p|pf|n|nf|u|uf])(?!\d)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex jedecRegex = new Regex(@"[1|2|3]N\d+[A-Z]?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex proElectronRegex = new Regex(@"[A|B|C|R][A|B|C|D|E|F|G|H|L|N|P|Q|R|S|T|U|W|X|Y|Z](\d{3}|[A-Z]\d{2})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex potentioMeterRegex = new Regex(@"(?<=\W)[A|B|C]?((\d+\.\d+|\d+)[R|K|M]\d*)[A|B|C]?(?!\sTRIM)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static Regex generalRegex = new Regex(@"(?<=IC\d+\s+).*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex trimmerRegex = new Regex(@"(?<=[A-Z]*\s+)\d+[R|K|M](?=\s+TRIM)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex generalRegex = new Regex(@"(?<=[A-Z]*?\d+\s+).*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private static List<Regex> semiConductorRegexList = new List<Regex>() { jedecRegex, proElectronRegex };
+        private static List<Regex> semiConductorRegexList = new List<Regex>() { jedecRegex, proElectronRegex, generalRegex };
         private static List<Regex> potentioMeterRegexList = new List<Regex>() { potentioMeterRegex };
 
         private static Dictionary<enumComponentType, List<Regex>> componentValueRegexDict = new Dictionary<enumComponentType, List<Regex>>
@@ -37,7 +38,8 @@ namespace PdfTableExtractor
             { enumComponentType.TRANSISTOR, semiConductorRegexList },
             { enumComponentType.INTEGRATED_CIRCUIT, new List<Regex>(){ generalRegex } },
             { enumComponentType.SWITCH, new List<Regex>(){ generalRegex } },
-            { enumComponentType.POTENTIOMETER, potentioMeterRegexList }
+            { enumComponentType.POTENTIOMETER, potentioMeterRegexList },
+            { enumComponentType.TRIMMER, new List<Regex>(){ trimmerRegex } },
         };
 
         private static Dictionary<enumComponentType, List<string>> abbreviationComponentTypeList =
@@ -221,7 +223,7 @@ namespace PdfTableExtractor
                     List<Regex> list = componentValueRegexDict[key];
 
                     component = createComponentFromMatch(pageLine,
-                        componentIndicator, enumComponentType.UNKNOWN, -1, list);
+                        componentIndicator, key, -1, list);
                     if (component != null && !component.Type.Equals(enumComponentType.UNKNOWN))
                     {
                         break;
@@ -232,8 +234,8 @@ namespace PdfTableExtractor
         }
 
         private static Component createComponentFromMatch(string pageLine, 
-            string componentIndicator, enumComponentType componentType, int componentSeqNum, 
-            List<Regex> list)
+            string componentIndicator, enumComponentType componentType, 
+            int componentSeqNum, List<Regex> list)
         {
             Component component = null;
             foreach (Regex item in list)
@@ -256,7 +258,7 @@ namespace PdfTableExtractor
                 component = new Component
                 {
                     ID = componentIndicator,
-                    Type = componentType,
+                    Type = enumComponentType.UNKNOWN,
                     Value = pageLine
                 };
             }
