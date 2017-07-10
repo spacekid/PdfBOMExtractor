@@ -1,0 +1,50 @@
+Component Indicators
+
+https://regex101.com/
+
+(\S+)\s+(\S+)\n
+
+(IC|R|C|D|Q)\d+
+
+
+
+R for resistors
+
+check for 6.8K versus 6K8
+check for ohm versus R
+
+INDICATOR	=	(IC|R|C|D|Q)\d+
+VALUE 		=	(\d+\.\d+|\d+)[R|K|M]\d*
+
+
+
+
+C for capacitors
+
+check for p,n,u versus pf, nf, uf
+check for elec, poly etc
+
+Q for transistors
+IC for integrated circuits
+D for diodes
+
+
+P for potentiometer OR check for A,B,C at front or back of the value to indicate audio, linear, reverse
+
+POT VALUES REGEX: (\d+[R|K|M][A|B|C])|([A|B|C]\d+[R|K|M])
+
+
+Resistors : 	10K, 10.1K or 10K1
+Capacitors: 	10p, 10 pF, 0.1pf, 0.1p, 100n, 100nF, 10u, 0.1uF + check for elec, film, box etc
+
+Diodes, Transistors, FETS:
+
+1.	[1|2|3]N\d+ (JEDEC system)
+2.	[A|B|C|R][A|B|C|D|E|F|G|H|L|N|P|Q|R|S|T|U|W|X|Y|Z](\d{3}|[A-Z]\d{2}) (Pro-Electron system)
+
+Integrated Circuits
+
+
+Problems still
+-	D1-D2
+-	Potentiometers and Trimmers not being found
