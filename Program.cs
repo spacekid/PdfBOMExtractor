@@ -17,11 +17,11 @@ namespace PdfTableExtractor
         private static Regex componentValueRegex = new Regex(@"(\d+\.\d+|\d+)[R|K|M]\d*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static Regex multipleComponentsRegex = new Regex(@"[a-zA-Z]+\d+(-[a-zA-Z]*?\d+)+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static Regex multiCompExtractionRegex = new Regex(@"([a-zA-Z]*?\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex multiCompExtractionRegex = new Regex(@"(([a-zA-Z]*?)(\d+))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static Regex resistorRegex = new Regex(@"(?<=\W)((\d+\.\d+|\d+)[R|K|M]\d*)(?![A|B|C])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex capacitorRegex = new Regex(@"(\d+\.\d+|\d+)([p|pf|n|nf|u|uf])\d{1}|(\d+\.\d+|\d+)([p|pf|n|nf|u|uf])(?!\d)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static Regex jedecRegex = new Regex(@"[1|2|3]N\d+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex jedecRegex = new Regex(@"[1|2|3]N\d+[A-Z]?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex proElectronRegex = new Regex(@"[A|B|C|R][A|B|C|D|E|F|G|H|L|N|P|Q|R|S|T|U|W|X|Y|Z](\d{3}|[A-Z]\d{2})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex potentioMeterRegex = new Regex(@"(?<=\W)[A|B|C]?((\d+\.\d+|\d+)[R|K|M]\d*)[A|B|C]?(?!\sTRIM)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex generalRegex = new Regex(@"(?<=IC\d+\s+).*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -61,8 +61,6 @@ namespace PdfTableExtractor
             //get the text from the pdf
             Dictionary<int, string[]> pdfTextDict = normalizeComponents(ExtractTextFromPdf(pdfPath));
 
-
-
             findBillOfMaterials(pdfTextDict);
             return;
         }
@@ -97,9 +95,30 @@ namespace PdfTableExtractor
                         {
                             string componentValue = pageLine.Replace(multiMatchValue, string.Empty);
 
+                            string componentType = string.Empty;
                             foreach(Match multiCompMatch in multiCompList)
                             {
-                                string newPageLine = string.Format("{0}{1}", multiCompMatch.Value, componentValue);
+                                if (string.IsNullOrEmpty(componentType))
+                                {
+                                    if (multiCompMatch.Groups.Count == 4)
+                                    {
+                                        componentType = multiCompMatch.Groups[2].Value;
+                                    }
+                                }
+
+                                string compIndicator = string.Empty;
+                                if (!string.IsNullOrEmpty(multiCompMatch.Groups[2].Value))
+                                {
+                                    compIndicator = multiCompMatch.Value;
+                                }
+                                else
+                                {
+                                    compIndicator = string.Format("{0}{1}",
+                                        componentType,
+                                        multiCompMatch.Groups[3].Value);
+                                }
+
+                                string newPageLine = string.Format("{0}{1}", compIndicator, componentValue);
 
                                 normalizedPageLines.Add(newPageLine);
                             }                            
