@@ -68,9 +68,12 @@ namespace PdfTableExtractor
         {
             //string pdfPath = @"G:\Martijn\Music\Guitar Pedals\Gristleiser.pdf";
             //string pdfPath = @"G:\Martijn\Music\Guitar Pedals\Repeater-V3.pdf";
+            string pdfPath = @"G:\Martijn\Music\Guitar Pedals\19Bells.pdf";
 
             //string pdfPath = @"C:\Personal\Guitar Pedals\Gristleiser.pdf";
-            string pdfPath = @"C:\Personal\Guitar Pedals\19Bells.pdf";
+            //string pdfPath = @"C:\Personal\Guitar Pedals\19Bells.pdf";
+
+            Console.WriteLine("Extracting BOM from "+ pdfPath);
 
             //get the text from the pdf
             Dictionary<int, string[]> pdfTextDict = ExtractTextFromPdf(pdfPath);
@@ -124,31 +127,36 @@ namespace PdfTableExtractor
                                     string componentValue = pageLine.Replace(multiMatchValue, string.Empty);
 
                                     string componentType = string.Empty;
-                                    foreach(Match multiCompMatch in multiCompList)
+                                    int sequenceNumber = -1;
+                                    for(int multiCompMatchIndex=0; multiCompMatchIndex<multiCompList.Count;multiCompMatchIndex++)
                                     {
-                                        if (string.IsNullOrEmpty(componentType))
+                                        Match multiCompMatch = multiCompList[multiCompMatchIndex];
+
+                                        string itemComponentType = multiCompMatch.Groups[2].Value;
+                                        int itemSequenceNumber = Int32.Parse(multiCompMatch.Groups[3].Value);
+
+                                        string newPageLine = string.Empty;
+
+                                        //on the first match, get the component type and the sequence number
+                                        if (multiCompMatchIndex == 0)
                                         {
-                                            if (multiCompMatch.Groups.Count == 4)
+                                            componentType = itemComponentType;
+                                            sequenceNumber = itemSequenceNumber;
+
+                                            newPageLine = string.Format("{0}{1}", multiCompMatch.Value, componentValue);
+
+                                            normalizedPageLines.Add(newPageLine);
+                                        }
+                                        else {
+                                            int diffItemAndMainSeqNum = (itemSequenceNumber - sequenceNumber);
+
+                                            for (int diffIndex = (sequenceNumber+1); diffIndex <= itemSequenceNumber; diffIndex++)
                                             {
-                                                componentType = multiCompMatch.Groups[2].Value;
+                                                newPageLine = string.Format("{0}{1}{2}", componentType, diffIndex, componentValue);
+
+                                                normalizedPageLines.Add(newPageLine);
                                             }
                                         }
-
-                                        string compIndicator = string.Empty;
-                                        if (!string.IsNullOrEmpty(multiCompMatch.Groups[2].Value))
-                                        {
-                                            compIndicator = multiCompMatch.Value;
-                                        }
-                                        else
-                                        {
-                                            compIndicator = string.Format("{0}{1}",
-                                                componentType,
-                                                multiCompMatch.Groups[3].Value);
-                                        }
-
-                                        string newPageLine = string.Format("{0}{1}", compIndicator, componentValue);
-
-                                        normalizedPageLines.Add(newPageLine);
                                     }                            
                                 }
                             } 

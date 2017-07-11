@@ -46,5 +46,4 @@ Integrated Circuits
 
 
 Problems still
--	trimmers shown as resistors
--	text matching that shouldnt
+-	N5088 which
